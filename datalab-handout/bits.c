@@ -143,17 +143,19 @@ NOTES:
  *   Rating: 1
  */
 int bitXor(int x, int y) {
-  return ~((~(~x & y)) & (~(x & ~y)));
+    // first get ~^ then get ^
+    return ~((~(~x & y)) & (~(x & ~y)));
 }
-/* 
+
+/*
  * tmin - return minimum two's complement integer 
  *   Legal ops: ! ~ & ^ | + << >>
  *   Max ops: 4
  *   Rating: 1
  */
 int tmin(void) {
-
-  return 2;
+//the tmin is 10000...
+    return 1 << 31;
 
 }
 //2
@@ -165,9 +167,14 @@ int tmin(void) {
  *   Rating: 1
  */
 int isTmax(int x) {
-  return 2;
+    // 0011111  010000
+    //max = 01111111.... + 1 = 10000000 , complementary with max
+    // but x = -1 also work, remove -1
+    // add a & operation to remove -1
+    return (!(~(x + 1) ^ x)) & !(!(x + 1));
 }
-/* 
+
+/*
  * allOddBits - return 1 if all odd-numbered bits in word set to 1
  *   where bits are numbered from 0 (least significant) to 31 (most significant)
  *   Examples allOddBits(0xFFFFFFFD) = 0, allOddBits(0xAAAAAAAA) = 1
@@ -176,9 +183,21 @@ int isTmax(int x) {
  *   Rating: 2
  */
 int allOddBits(int x) {
-  return 2;
+    //  1 0  1  0 -> move one bit 0 1 0 1 what if we have something like 1 1 0 0  1 1 1 0
+    //  1 0  1  0 & x -> 1 0  1  0
+    // 1 0 1 0 =   1 0 1 0  1 0 1 0
+    int x1 = 170;
+    int x2 = 170 << 8;
+    int x3 = 170 << 16;
+    int x4 = 170 << 24;
+    int oldBitsOne = x1 + x2 + x3 + x4;
+    int compare = oldBitsOne & x;
+    int minusCompare = ~compare + 1;
+    return !(oldBitsOne + minusCompare);
+
 }
-/* 
+
+/*
  * negate - return -x 
  *   Example: negate(1) = -1.
  *   Legal ops: ! ~ & ^ | + << >>
@@ -186,7 +205,7 @@ int allOddBits(int x) {
  *   Rating: 2
  */
 int negate(int x) {
-  return 2;
+    return ~x + 1;
 }
 //3
 /* 
@@ -199,9 +218,27 @@ int negate(int x) {
  *   Rating: 3
  */
 int isAsciiDigit(int x) {
-  return 2;
+    //thought: 0x30 = 00000000000000000000000000110000, 0x39 =00000000000000000000000000111001
+    // start with 000000011 xxxxx  , shift  4 and then comare
+    // right -> 4,  minus 11 =0
+
+    //last four digit is from 0 0 0 0 - 1 0 0 1
+    int minus3 = ~3 + 1;
+    int shiftX = x >> 4;
+    int difference = shiftX + minus3;
+    int firstPremise = !difference;
+
+    int lastFourDigitOfX = 15 & x;
+    //last four digit >=0  and <= 9
+    int minus10 = ~10 + 1;
+
+    int difference2 = lastFourDigitOfX + minus10;
+    int secondPremise = (difference2 >> 31) & 1;;
+
+    return firstPremise & secondPremise;
 }
-/* 
+
+/*
  * conditional - same as x ? y : z 
  *   Example: conditional(2,4,5) = 4
  *   Legal ops: ! ~ & ^ | + << >>
@@ -209,17 +246,38 @@ int isAsciiDigit(int x) {
  *   Rating: 3
  */
 int conditional(int x, int y, int z) {
-  return 2;
+    // if x = 1 isXTrue， xtrue = 1 then transfer to 11111  xfalse =0 transfer to 000 vice versa
+    int isXTrue = ~((!(!x))) + 1;
+    int isXFalse = (~(!x)) + 1;
+    return (isXTrue & y) | (isXFalse & z);
 }
-/* 
+
+/*
  * isLessOrEqual - if x <= y  then return 1, else return 0 
  *   Example: isLessOrEqual(4,5) = 1.
  *   Legal ops: ! ~ & ^ | + << >>
  *   Max ops: 24
  *   Rating: 3
  */
+
 int isLessOrEqual(int x, int y) {
-  return 2;
+    //use neg to realize -
+    //  x-y<=0
+    // -inf  inf  should be true
+    // 1000000000   01111111 -> 10000001
+    //corner case   011111   1000000
+    //corner case   011111   0  -> res=
+    //corner case   011111   100000
+    // use four digits to see corner case
+
+    int minusY = ~y + 1;
+    int res = x + minusY;
+    // res < 0 or
+
+    int isXPositive = !(x >> 31);
+    int isYNegative = (y >> 31) & 1;
+    int isXPAndYN = isXPositive & isYNegative;
+    return (((res >> 31) & 1) & !isXPAndYN) | (!res) | ((!isXPositive) & (!isYNegative));
 }
 //4
 /* 
@@ -231,8 +289,12 @@ int isLessOrEqual(int x, int y) {
  *   Rating: 4 
  */
 int logicalNeg(int x) {
-  return 2;
+    // if x is negative first digit is 1, if x is postive, turn to - x
+    int minusX = ~x + 1;
+    int logicNonNeg = (((x >> 31) & 1) | ((minusX >> 31) & 1));
+    return ~logicNonNeg + 2;
 }
+
 /* howManyBits - return the minimum number of bits required to represent x in
  *             two's complement
  *  Examples: howManyBits(12) = 5
@@ -246,7 +308,35 @@ int logicalNeg(int x) {
  *  Rating: 4
  */
 int howManyBits(int x) {
-  return 0;
+    // for positive number, need to find the largest 1 and add 1
+    // for negative number, need to find the largest 0 and add 1 (1 1 0 1 )  (1 0 1) are the same, because first
+    // two left digits can counter, we can make all negative number to positive
+    // for positive number, need to find the largest 1 and add 1
+    // for negative number, need to find the largest 0 and add 1 (1 1 0 1 )  (1 0 1) are the same, because first
+    // two left digits can counter, we can make all negative number to positive
+
+    int abX, hasOneInLeft16, hasOneInLeft8, hasOneInLeft4, hasOneInLeft2, hasOneInLeft1;
+    int sign = x >> 31;
+    abX = (sign & ~x) | (~sign & x);
+
+    //use binary search, compare first 16 digit.
+    hasOneInLeft16 = !!(abX >> 16) << 4;  // 16 -> if there's one, 0 if there's no one
+    // if all zero, search the right eight digit, else, search left digit
+    abX = abX >> hasOneInLeft16;
+
+    hasOneInLeft8 = !!(abX >> 8) << 3;
+    abX = abX >> hasOneInLeft8;
+
+    hasOneInLeft4 = !!(abX >> 4) << 2;
+    abX = abX >> hasOneInLeft4;
+
+    hasOneInLeft2 = !!(abX >> 2) << 1;
+    abX = abX >> hasOneInLeft2;
+    hasOneInLeft1 = !!(abX >> 1) << 0;
+    abX = abX >> hasOneInLeft1;
+
+
+    return hasOneInLeft16 + hasOneInLeft8 + hasOneInLeft4 + hasOneInLeft2 + hasOneInLeft1 + abX + 1;
 }
 //float
 /* 
@@ -261,9 +351,27 @@ int howManyBits(int x) {
  *   Rating: 4
  */
 unsigned floatScale2(unsigned uf) {
-  return 2;
+    // first check if it is nan or inf, 255 is 1 1 1 1 1 1
+    unsigned expDigits = (uf >> 23) & 255;
+    unsigned sign = uf & -2147483648; // get the first digit
+
+    if (expDigits == 255) {
+        return uf;
+    }
+
+    //for denormorlized number, just left shift one digit
+    if (expDigits == 0) {
+        return ((~(1 << 31)) & (uf << 1)) | sign;
+    }
+
+    if (expDigits == 254) { // number*2 will overflow, just return infinity
+        return (255 << 23) | sign;
+    }
+
+    return uf + (1 << 23); // for others just add 1
 }
-/* 
+
+/*
  * floatFloat2Int - Return bit-level equivalent of expression (int) f
  *   for floating point argument f.
  *   Argument is passed as unsigned int, but
@@ -276,9 +384,35 @@ unsigned floatScale2(unsigned uf) {
  *   Rating: 4
  */
 int floatFloat2Int(unsigned uf) {
-  return 2;
+    int expDigits = (uf >> 23) & 255;
+    unsigned inputFrac = uf & (~(511 << 23));
+    int exp = expDigits - 127;
+    unsigned reservedBit = (inputFrac >> (22 - exp)) << (22 - exp);
+    int result;
+
+    if (expDigits == 255) {
+        -2147483648;
+    }
+
+    if (exp < 0) {
+        return 0;
+    }
+    //add first one
+
+    if (exp >= 31){
+        return -2147483648;
+    }
+
+    inputFrac = inputFrac | (1 << 23);
+    result = inputFrac >> (23 - exp);
+    if( uf >= (1<<31) ){
+        return -result;
+    }
+    return result;
+
 }
-/* 
+
+/*
  * floatPower2 - Return bit-level equivalent of the expression 2.0^x
  *   (2.0 raised to the power x) for any 32-bit integer x.
  *
@@ -291,6 +425,21 @@ int floatFloat2Int(unsigned uf) {
  *   Max ops: 30 
  *   Rating: 4
  */
+
 unsigned floatPower2(int x) {
-    return 2;
+    unsigned bit = 23;
+    if (x < -329) { // too small
+        return 0;
+    }
+
+    if (x > 127) { // too large
+        return 255 << bit;
+    }
+
+    if (x <= -127) { //dnorm
+        return (1 << 24) >> (x - 126);
+    }
+    return (x + 127) << 23;  //norm
+
+
 }
